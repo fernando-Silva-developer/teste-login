@@ -1,113 +1,124 @@
+# app.py (Streamlit)
 import streamlit as st
+import stripe
 import sqlite3
 import bcrypt
-import stripe
+import os
 
-stripe.api_key = "SUA_SECRET_KEY"
+stripe.api_key = SUA_SECRET_KEY
 
-def get_conn():
-    return sqlite3.connect("users.db", check_same_thread=False)
-
-def create_table():
-    conn = get_conn()
+# --- BANCO DE DADOS ---
+def init_db():
+    conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
     c.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password TEXT NOT NULL,
-            is_paid INTEGER DEFAULT 0
-        )
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY,
+        email TEXT UNIQUE,
+        senha_hash TEXT,
+        status_pagamento TEXT DEFAULT 'pendente'
+    )
     """)
     conn.commit()
     conn.close()
 
-def add_user(username, password):
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    conn = get_conn()
+
+def cadastrar_usuario(email, senha):
+    conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
-    c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed))
-    conn.commit()
+    senha_hash = bcrypt.hashpw(senha.encode(), bcrypt.gensalt())
+    try:
+        c.execute("INSERT INTO usuarios (email, senha_hash) VALUES (?, ?)", (email, senha_hash))
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+
+def verificar_login(email, senha):
+    conn = sqlite3.connect("usuarios.db")
+    c = conn.cursor()
+    c.execute("SELECT senha_hash FROM usuarios WHERE email = ?", (email,))
+    row = c.fetchone()
     conn.close()
+    if row and bcrypt.checkpw(senha.encode(), row[0]):
+        return True
+    return False
 
-def get_user(username):
-    conn = get_conn()
+
+def obter_status_pagamento(email):
+    conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ?", (username,))
-    return c.fetchone()
+    c.execute("SELECT status_pagamento FROM usuarios WHERE email = ?", (email,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
 
-def login():
-    st.subheader("Login")
-    username = st.text_input("Usuário")
-    password = st.text_input("Senha", type="password")
-    if st.button("Entrar"):
-        u = get_user(username)
-        if not u:
-            st.error("Usuário não encontrado")
-        elif not bcrypt.checkpw(password.encode(), u[1].encode()):
-            st.error("Senha incorreta")
-        else:
-            st.session_state.logged = True
-            st.session_state.user = username
-            st.success("Logado com sucesso")
 
-def register():
-    st.subheader("Cadastro")
-    username = st.text_input("Novo usuário")
-    password = st.text_input("Nova senha", type="password")
+# --- PAGAMENTO ---
+def criar_checkout(email):
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "brl",
+                "product_data": {"name": "Acesso Premium"},
+                "unit_amount": 500,  # R$5,00
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url="http://localhost:8501/?status=sucesso",
+        cancel_url="http://localhost:8501/?status=cancelado",
+        customer_email=email
+    )
+    return session.url
+
+
+# --- INTERFACE STREAMLIT ---
+init_db()
+st.set_page_config(page_title="Sistema com Pagamento")
+st.title("Acesso ao Sistema")
+
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+    st.session_state.email = ""
+
+aba = st.sidebar.radio("Menu", ["Login", "Cadastro", "Conteúdo"])
+
+if aba == "Cadastro":
+    email = st.text_input("Email")
+    senha = st.text_input("Senha", type="password")
     if st.button("Cadastrar"):
-        if get_user(username):
-            st.warning("Usuário já existe")
+        if cadastrar_usuario(email, senha):
+            st.success("Cadastro realizado! Faça login.")
         else:
-            add_user(username, password)
-            st.success("Usuário cadastrado!")
+            st.error("Usuário já existe.")
 
-def payment():
-    st.subheader("Pagamento")
-    if st.button("Gerar link de pagamento"):
-        session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'brl',
-                    'unit_amount': 990,
-                    'product_data': {'name': 'Acesso ao sistema'}
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url='https://teste-login-cma2.onrender.com',
-            cancel_url='https://teste-login-cma2.onrender.com',
-            metadata={'username': st.session_state.user}
-        )
-        st.markdown(f"[Clique aqui para pagar]({session.url})")
-
-def main():
-    st.title("MVP com Login e Stripe")
-
-    create_table()
-
-    if "logged" not in st.session_state:
-        st.session_state.logged = False
-        st.session_state.user = None
-
-    if not st.session_state.logged:
-        option = st.sidebar.selectbox("Menu", ["Login", "Cadastro"])
-        if option == "Login":
-            login()
+elif aba == "Login":
+    email = st.text_input("Email")
+    senha = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        if verificar_login(email, senha):
+            st.session_state.logado = True
+            st.session_state.email = email
+            st.success("Login realizado!")
         else:
-            register()
+            st.error("Login inválido.")
+
+elif aba == "Conteúdo":
+    if not st.session_state.logado:
+        st.warning("Faça login primeiro.")
+        st.stop()
+
+    status = obter_status_pagamento(st.session_state.email)
+    if status == "pago":
+        st.success("Acesso liberado ao conteúdo premium!")
+        st.markdown("Aqui está seu conteúdo protegido. 🎉")
     else:
-        st.sidebar.success(f"Usuário: {st.session_state.user}")
-        if st.sidebar.button("Sair"):
-            st.session_state.logged = False
-            st.session_state.user = None
-            st.rerun()
-
-        user = get_user(st.session_state.user)
-        if user and not user[2]:
-            payment()
-        else:
-            st.success("Acesso liberado! 🎉")
-
-if __name__ == "__main__":
-    main()
+        st.warning("Você precisa realizar o pagamento.")
+        if st.button("Pagar R$5,00"):
+            url = criar_checkout(st.session_state.email)
+            st.markdown(f"[Clique aqui para pagar]({url})")
