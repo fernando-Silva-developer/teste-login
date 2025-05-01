@@ -75,8 +75,8 @@ def payment():
                 'quantity': 1,
             }],
             mode='payment',
-            success_url='https://SEU_DOMINIO_STREAMLIT.onrender.com',
-            cancel_url='https://SEU_DOMINIO_STREAMLIT.onrender.com',
+            success_url='https://teste-login-cma2.onrender.com',
+            cancel_url='https://teste-login-cma2.onrender.com',
             metadata={'username': st.session_state.user}
         )
         st.markdown(f"[Clique aqui para pagar]({session.url})")
