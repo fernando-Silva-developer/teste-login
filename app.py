@@ -1,11 +1,11 @@
-# app.py (Streamlit)
 import streamlit as st
 import stripe
 import sqlite3
 import bcrypt
 import os
 
-stripe.api_key = SUA_SECRET_KEY
+# --- CONFIGURAR A CHAVE DA STRIPE USANDO VARIÁVEL DE AMBIENTE ---
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")  # Defina no painel do Render
 
 # --- BANCO DE DADOS ---
 def init_db():
@@ -22,7 +22,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
 def cadastrar_usuario(email, senha):
     conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
@@ -36,7 +35,6 @@ def cadastrar_usuario(email, senha):
     finally:
         conn.close()
 
-
 def verificar_login(email, senha):
     conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
@@ -47,7 +45,6 @@ def verificar_login(email, senha):
         return True
     return False
 
-
 def obter_status_pagamento(email):
     conn = sqlite3.connect("usuarios.db")
     c = conn.cursor()
@@ -56,8 +53,7 @@ def obter_status_pagamento(email):
     conn.close()
     return row[0] if row else None
 
-
-# --- PAGAMENTO ---
+# --- PAGAMENTO COM STRIPE ---
 def criar_checkout(email):
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
@@ -70,12 +66,11 @@ def criar_checkout(email):
             "quantity": 1,
         }],
         mode="payment",
-        success_url="http://localhost:8501/?status=sucesso",
-        cancel_url="http://localhost:8501/?status=cancelado",
+        success_url="https://SEU_DOMINIO.onrender.com?status=sucesso",  # altere para seu domínio Render
+        cancel_url="https://SEU_DOMINIO.onrender.com?status=cancelado",
         customer_email=email
     )
     return session.url
-
 
 # --- INTERFACE STREAMLIT ---
 init_db()
