@@ -6,8 +6,8 @@ import os
 
 app = Flask(__name__)
 
-stripe.api_key = SUA_SECRET_KEY
-endpoint_secret = SEU_ENDPOINT
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")           # chave da API
+endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")      # segredo do webhook
 
 # --- Atualiza status do usuário no banco ---
 def marcar_como_pago(email):
