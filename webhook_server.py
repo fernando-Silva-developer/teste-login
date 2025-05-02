@@ -29,10 +29,31 @@ def webhook():
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        print(f"[Webhook] Evento recebido: {event['type']}")  # Log para depuração
     except ValueError as e:
         return f"Invalid payload: {e}", 400
     except stripe.error.SignatureVerificationError as e:
         return f"Invalid signature: {e}", 400
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        email = session.get("customer_email")
+        if email:
+            marcar_como_pago(email)
+            print(f"[Webhook] Pagamento confirmado para {email}")  # Log para depuração
+
+    return "Webhook recebido", 200
+#@app.route("/webhook", methods=["POST"])
+# def webhook():
+#     payload = request.data
+#     sig_header = request.headers.get("stripe-signature")
+
+#     try:
+#         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+#     except ValueError as e:
+#         return f"Invalid payload: {e}", 400
+#     except stripe.error.SignatureVerificationError as e:
+#         return f"Invalid signature: {e}", 400
 
     # Se pagamento confirmado, marcar como pago
     if event["type"] == "checkout.session.completed":
