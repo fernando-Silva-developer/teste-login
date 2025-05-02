@@ -73,6 +73,56 @@ def criar_checkout(email):
     return session.url
 
 # --- INTERFACE STREAMLIT ---
+# init_db()
+# st.set_page_config(page_title="Sistema com Pagamento")
+# st.title("Acesso ao Sistema")
+
+# if "logado" not in st.session_state:
+#     st.session_state.logado = False
+#     st.session_state.email = ""
+
+# aba = st.sidebar.radio("Menu", ["Login", "Cadastro", "Conteúdo"])
+
+# if aba == "Cadastro":
+#     email = st.text_input("Email")
+#     senha = st.text_input("Senha", type="password")
+#     if st.button("Cadastrar"):
+#         if cadastrar_usuario(email, senha):
+#             st.success("Cadastro realizado! Faça login.")
+#         else:
+#             st.error("Usuário já existe.")
+
+# elif aba == "Login":
+#     email = st.text_input("Email")
+#     senha = st.text_input("Senha", type="password")
+#     if st.button("Entrar"):
+#         if verificar_login(email, senha):
+#             st.session_state.logado = True
+#             st.session_state.email = email
+#             st.success("Login realizado!")
+#         else:
+#             st.error("Login inválido.")
+
+# elif aba == "Conteúdo":
+#     if not st.session_state.logado:
+#         st.warning("Faça login primeiro.")
+#         st.stop()
+
+#     status = obter_status_pagamento(st.session_state.email)
+#     if status == "pago":
+#         st.success("Acesso liberado ao conteúdo premium!")
+#         st.markdown("Aqui está seu conteúdo protegido. 🎉")
+#     else:
+#         st.warning("Você precisa realizar o pagamento.")
+#         if st.button("Pagar R$5,00"):
+#             url = criar_checkout(st.session_state.email)
+#             st.markdown(f"[Clique aqui para pagar]({url})")
+
+
+
+# ... (código anterior, como init_db, cadastrar_usuario, etc.)
+
+# --- INTERFACE STREAMLIT ---
 init_db()
 st.set_page_config(page_title="Sistema com Pagamento")
 st.title("Acesso ao Sistema")
@@ -80,6 +130,13 @@ st.title("Acesso ao Sistema")
 if "logado" not in st.session_state:
     st.session_state.logado = False
     st.session_state.email = ""
+
+# Verificar parâmetros da URL após pagamento
+query_params = st.experimental_get_query_params()
+if "status" in query_params and query_params["status"][0] == "sucesso":
+    st.success("Pagamento realizado com sucesso!")
+    # Forçar atualização do status na sessão
+    st.session_state.status_pagamento = "pago"
 
 aba = st.sidebar.radio("Menu", ["Login", "Cadastro", "Conteúdo"])
 
@@ -108,7 +165,12 @@ elif aba == "Conteúdo":
         st.warning("Faça login primeiro.")
         st.stop()
 
-    status = obter_status_pagamento(st.session_state.email)
+    # Verificar se o status foi atualizado via URL ou buscar no banco
+    if "status_pagamento" in st.session_state and st.session_state.status_pagamento == "pago":
+        status = "pago"
+    else:
+        status = obter_status_pagamento(st.session_state.email)
+
     if status == "pago":
         st.success("Acesso liberado ao conteúdo premium!")
         st.markdown("Aqui está seu conteúdo protegido. 🎉")
