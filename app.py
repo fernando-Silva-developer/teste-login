@@ -61,7 +61,7 @@ def criar_checkout(email):
             "price_data": {
                 "currency": "brl",
                 "product_data": {"name": "Acesso Premium"},
-                "unit_amount": 500,  # R$5,00
+                "unit_amount": 100,  # R$5,00
             },
             "quantity": 1,
         }],
