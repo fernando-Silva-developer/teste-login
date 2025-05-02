@@ -66,8 +66,8 @@ def criar_checkout(email):
             "quantity": 1,
         }],
         mode="payment",
-        success_url="https://SEU_DOMINIO.onrender.com?status=sucesso",  # altere para seu domínio Render
-        cancel_url="https://SEU_DOMINIO.onrender.com?status=cancelado",
+        success_url="https://teste-login-3.onrender.com?status=sucesso",  # altere para seu domínio Render
+        cancel_url="https://teste-login-3.onrender.com?status=cancelado",
         customer_email=email
     )
     return session.url
